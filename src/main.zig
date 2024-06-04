@@ -38,6 +38,8 @@ pub fn main() !void {
     const stdout = std.io.getStdOut().writer(); 
     
     const args = try std.process.argsAlloc(allocator);
+    defer allocator.free(args);
+
     const file_path = args[1];
 
     var file = try std.fs.cwd().openFile(file_path, .{});
@@ -46,8 +48,12 @@ pub fn main() !void {
     var calib_sum: usize = 0;
     var two_digit = [2]u4{ 0, 0 };
     var empty_digit: bool = true;
+    
     var literal = std.ArrayList(u8).init(allocator);
     defer literal.deinit();
+    
+    var linestr = std.ArrayList(u8).init(allocator);
+    defer linestr.deinit();
 
     const end = try file.getEndPos();
     while (end > try file.getPos()) {
@@ -57,15 +63,19 @@ pub fn main() !void {
         if (len == 0) break;
 
         if (chars[0] == '\n') {
+            if (empty_digit) continue;
             const calib = (@as(u7, two_digit[0]) * 10) + two_digit[1];
-            try stdout.print("calib: {}\n", .{calib});
-            calib_sum += calib;
+            try stdout.print("{s} => {}\n", .{linestr.items, calib});
             literal.clearRetainingCapacity();
+            linestr.clearRetainingCapacity();
+            calib_sum += calib;
             empty_digit = true;
             continue;
         }
         
+        try linestr.append(chars[0]);
         try literal.append(chars[0]);
+        
         const digit = std.fmt.parseInt(u4, &chars, 10) catch parseLiteral(literal) catch continue;
         literal.clearRetainingCapacity();
 
